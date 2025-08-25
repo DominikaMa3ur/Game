@@ -73,27 +73,35 @@ int main ()
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
     camera.fovy = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
+    
+    bool gameStarted = false;
 
     Vector3 world[10];
     for (int i = 0; i < 10; i++) {world[i] = {i*4.0f, 0.0f, 0.0f};}
+    Vector3 cube = {1.0f, 1.0f, 1.0f};
     std::vector<GameButton> menu = {
         GameButton(16,16,320,80, "New game"), GameButton(16,128,320,80, "Exit")
     };
     menu[0].center();
     menu[1].center();
+    bool exited = false;
 
-	while (!WindowShouldClose())
+	while (!exited)
 	{
-		UpdateCamera(&camera, CAMERA_FIRST_PERSON);
+        if (gameStarted) {		
+            UpdateCamera(&camera, CAMERA_FIRST_PERSON);
+        }
 		BeginDrawing();
 
 		ClearBackground(BLACK);
         BeginMode3D(camera);
         for (int i = 0; i < 10; i++) {
-            DrawCube(world[i], 1.0f, 1.0f, 1.0f, BLUE);
+            DrawCubeV(world[i], cube, BLUE);
         }
         EndMode3D();
         for (int i = 0; i < int(menu.size()); i++) {menu[i].draw();}
+        if (menu[0].isPressed()) {gameStarted = true;}
+        if (menu[1].isPressed() || WindowShouldClose()) {exited = true;}
 		EndDrawing();
 	}
 	CloseWindow();
