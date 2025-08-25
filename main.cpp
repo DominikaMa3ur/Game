@@ -63,9 +63,28 @@ class GameButton {
         }
 };
 
+std::vector<GameButton> buttonsMenu()
+{
+    std::vector<GameButton> menu = {
+        GameButton(16,16,320,80, "New game"), GameButton(16,128,320,80, "Exit")
+    };
+    menu[0].center();
+    menu[1].center();
+    return menu;
+}
+
+std::vector<GameButton> buttonsPause()
+{
+    std::vector<GameButton> menu = {GameButton(16,16,320,80, "Continue"), GameButton(16,128,320,80, "Menu")};
+    menu[0].center();
+    menu[1].center();
+    return menu;
+}
+
 int main ()
 {
 	InitWindow(1280, 800, "3D");
+    SetExitKey(KEY_NULL);
 	
     Camera3D camera = { 0 };
     camera.position = (Vector3){ -8.0f, 0.0f, 0.0f };
@@ -74,23 +93,45 @@ int main ()
     camera.fovy = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
     
-    bool gameStarted = false;
-
+    enum GAME_STATE {PAUSED, MENU, RUNNING};
+    GAME_STATE G = MENU;
+    
     Vector3 world[10];
     for (int i = 0; i < 10; i++) {world[i] = {i*4.0f, 0.0f, 0.0f};}
     Vector3 cube = {1.0f, 1.0f, 1.0f};
-    std::vector<GameButton> menu = {
-        GameButton(16,16,320,80, "New game"), GameButton(16,128,320,80, "Exit")
-    };
-    menu[0].center();
-    menu[1].center();
+    std::vector<GameButton> menu = buttonsMenu();
     bool exited = false;
 
 	while (!exited)
 	{
-        if (gameStarted) {		
+        if (G == RUNNING) {
             UpdateCamera(&camera, CAMERA_FIRST_PERSON);
+            if (WindowShouldClose()) {exited = true;}
+            if (IsKeyPressed(KEY_ESCAPE))
+            {
+                menu = buttonsPause();
+                G = PAUSED;
+            }
         }
+        if (G == MENU) {
+            if (menu[0].isPressed()) {
+                G = RUNNING;
+                menu = {};
+            }
+            if (menu[1].isPressed() || WindowShouldClose()) {exited = true;}
+        }
+        if (G == PAUSED) {
+            if (menu[0].isPressed()) {
+                G = RUNNING;
+                menu = {};
+            }
+            if (menu[1].isPressed()) {
+                G = MENU;
+                menu = buttonsMenu();
+            }
+            if (WindowShouldClose()) {exited = true;}
+        }
+
 		BeginDrawing();
 
 		ClearBackground(BLACK);
@@ -100,8 +141,6 @@ int main ()
         }
         EndMode3D();
         for (int i = 0; i < int(menu.size()); i++) {menu[i].draw();}
-        if (menu[0].isPressed()) {gameStarted = true;}
-        if (menu[1].isPressed() || WindowShouldClose()) {exited = true;}
 		EndDrawing();
 	}
 	CloseWindow();
