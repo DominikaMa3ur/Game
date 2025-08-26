@@ -33,6 +33,7 @@ class GameButton {
         }
         bool isInside() {return CheckCollisionPointRec(GetMousePosition(), rect);}
         bool isPressed() {return (isInside() && IsMouseButtonPressed(MOUSE_BUTTON_LEFT));}
+        bool isReleased() {return (isInside() && IsMouseButtonReleased(MOUSE_BUTTON_LEFT));}
         void select(bool selected) {isSelected = selected;}
         void draw() {
             if ((isInside() && IsMouseButtonDown(MOUSE_BUTTON_LEFT)))
@@ -63,21 +64,28 @@ class GameButton {
         }
 };
 
+std::vector<GameButton> centerButtons(std::vector<GameButton> buttons)
+{
+    for (int i = 0; i < buttons.size(); i++)
+    {
+        buttons[i].center();
+    }
+    return buttons;
+}
+
 std::vector<GameButton> buttonsMenu()
 {
     std::vector<GameButton> menu = {
         GameButton(16,16,320,80, "New game"), GameButton(16,128,320,80, "Exit")
     };
-    menu[0].center();
-    menu[1].center();
+    menu = centerButtons(menu);
     return menu;
 }
 
 std::vector<GameButton> buttonsPause()
 {
     std::vector<GameButton> menu = {GameButton(16,16,320,80, "Continue"), GameButton(16,128,320,80, "Menu")};
-    menu[0].center();
-    menu[1].center();
+    menu = centerButtons(menu);
     return menu;
 }
 
@@ -114,18 +122,18 @@ int main ()
             }
         }
         if (G == MENU) {
-            if (menu[0].isPressed()) {
+            if (menu[0].isReleased()) {
                 G = RUNNING;
                 menu = {};
             }
-            if (menu[1].isPressed() || WindowShouldClose()) {exited = true;}
+            if (menu[1].isReleased() || WindowShouldClose()) {exited = true;}
         }
         if (G == PAUSED) {
-            if (menu[0].isPressed()) {
+            if (menu[0].isReleased()) {
                 G = RUNNING;
                 menu = {};
             }
-            if (menu[1].isPressed()) {
+            if (menu[1].isReleased()) {
                 G = MENU;
                 menu = buttonsMenu();
             }
