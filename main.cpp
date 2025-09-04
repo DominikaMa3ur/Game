@@ -1,5 +1,6 @@
 #include "raylib.h"
 #include <vector>
+#include <cmath>
 
 class GameButton {
     private:
@@ -91,11 +92,13 @@ std::vector<GameButton> buttonsPause()
 
 int main ()
 {
-	InitWindow(1280, 800, "3D");
+    const double CAMRADIUS = 8.0;
+    double angle = 0.0f;
+    InitWindow(1280, 800, "3D");
     SetExitKey(KEY_NULL);
 	
     Camera3D camera = { 0 };
-    camera.position = (Vector3){ -8.0f, 0.0f, 0.0f };
+    camera.position = (Vector3){ -8.0f, 1.0f, 0.0f };
     camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
     camera.fovy = 45.0f;
@@ -113,7 +116,23 @@ int main ()
 	while (!exited)
 	{
         if (G == RUNNING) {
-            UpdateCamera(&camera, CAMERA_FIRST_PERSON);
+            float delta = GetFrameTime();
+            float x = 0.0f;
+            float y = 0.0f;
+            float z = 0.0f;
+            if (IsKeyDown(KEY_W)) {
+                camera.target.x -= 2.0f*sin(angle)*delta;
+                camera.target.z -= 2.0f*cos(angle)*delta;
+            }
+            if (IsKeyDown(KEY_A)) {
+                angle += 1.0f*delta;
+            }
+            if (IsKeyDown(KEY_D)) {
+                angle -= 1.0f*delta;
+            }
+            while (angle > 2*M_PI) {angle -= 2*M_PI;}
+            camera.position = (Vector3){camera.target.x + sin(angle)*CAMRADIUS,
+            camera.position.y, camera.target.z + cos(angle)*CAMRADIUS};
             if (WindowShouldClose()) {exited = true;}
             if (IsKeyPressed(KEY_ESCAPE))
             {
@@ -147,6 +166,7 @@ int main ()
         for (int i = 0; i < 10; i++) {
             DrawCubeV(world[i], cube, BLUE);
         }
+        DrawCube(camera.target, 0.1f, 0.1f, 0.1f, ORANGE);
         EndMode3D();
         for (int i = 0; i < int(menu.size()); i++) {menu[i].draw();}
 		EndDrawing();
