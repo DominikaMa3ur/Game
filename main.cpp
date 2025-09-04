@@ -2,6 +2,61 @@
 #include <vector>
 #include <cmath>
 
+class Collidable {
+    private:
+    public:
+        Vector3 bb = {1.0f,1.0f,1.0f};
+        Vector3 pos = {0.0f,0.0f,0.0f};
+        BoundingBox box() {
+            return (BoundingBox){pos, (Vector3){pos.x+bb.x,pos.y+bb.y,pos.z+bb.z}};
+        }
+};
+
+bool isColliding(Collidable c1, Collidable c2)
+{
+    return CheckCollisionBoxes(c1.box(),c2.box());
+}
+
+class Item : public Collidable {
+    public:
+    Item(Vector3 item_pos) {
+        pos = item_pos;
+    }
+    Item(float x, float y, float z) {
+        pos = {x,y,z};
+    }
+    void draw()
+    {
+        DrawCubeV(pos, bb, BLUE);
+    }
+};
+
+class Player : public Collidable {
+    private:
+        const double CAMRADIUS = 8.0;
+        const float speed = 5.0f;
+        double angle = 0.0f;
+    public:
+    void update(Camera &cam)
+    {
+        float delta = GetFrameTime();
+        if (IsKeyDown(KEY_W)) {
+            cam.target.x -= speed*sin(angle)*delta;
+            cam.target.z -= speed*cos(angle)*delta;
+        }
+        pos = cam.target;
+        if (IsKeyDown(KEY_A)) {
+            angle += 2.0f*delta;
+        }
+        if (IsKeyDown(KEY_D)) {
+            angle -= 2.0f*delta;
+        }
+        while (angle > 2*M_PI) {angle -= 2*M_PI;}
+        cam.position = (Vector3){cam.target.x + sin(angle)*CAMRADIUS,
+        cam.position.y, cam.target.z + cos(angle)*CAMRADIUS};
+    }
+};
+
 class GameButton {
     private:
         Rectangle rect;
@@ -92,11 +147,10 @@ std::vector<GameButton> buttonsPause()
 
 int main ()
 {
-    const double CAMRADIUS = 8.0;
-    double angle = 0.0f;
     InitWindow(1280, 800, "3D");
     SetExitKey(KEY_NULL);
-	
+
+	Player player;
     Camera3D camera = { 0 };
     camera.position = (Vector3){ -8.0f, 1.0f, 0.0f };
     camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };
@@ -106,33 +160,16 @@ int main ()
     
     enum GAME_STATE {PAUSED, MENU, RUNNING};
     GAME_STATE G = MENU;
-    
-    Vector3 world[10];
-    for (int i = 0; i < 10; i++) {world[i] = {i*4.0f, 0.0f, 0.0f};}
-    Vector3 cube = {1.0f, 1.0f, 1.0f};
+    std::vector<Item> items;
+    for (int i = 0; i < 16; i++) {Item item = Item(4.0f*i, 0.0f, 4.0f*i); items.push_back(item);}
+    Color CLEAR_COLOR = BLACK;
     std::vector<GameButton> menu = buttonsMenu();
     bool exited = false;
 
 	while (!exited)
 	{
         if (G == RUNNING) {
-            float delta = GetFrameTime();
-            float x = 0.0f;
-            float y = 0.0f;
-            float z = 0.0f;
-            if (IsKeyDown(KEY_W)) {
-                camera.target.x -= 2.0f*sin(angle)*delta;
-                camera.target.z -= 2.0f*cos(angle)*delta;
-            }
-            if (IsKeyDown(KEY_A)) {
-                angle += 1.0f*delta;
-            }
-            if (IsKeyDown(KEY_D)) {
-                angle -= 1.0f*delta;
-            }
-            while (angle > 2*M_PI) {angle -= 2*M_PI;}
-            camera.position = (Vector3){camera.target.x + sin(angle)*CAMRADIUS,
-            camera.position.y, camera.target.z + cos(angle)*CAMRADIUS};
+            player.update(camera);
             if (WindowShouldClose()) {exited = true;}
             if (IsKeyPressed(KEY_ESCAPE))
             {
@@ -161,12 +198,12 @@ int main ()
 
 		BeginDrawing();
 
-		ClearBackground(BLACK);
+		ClearBackground(CLEAR_COLOR);
         BeginMode3D(camera);
-        for (int i = 0; i < 10; i++) {
-            DrawCubeV(world[i], cube, BLUE);
-        }
-        DrawCube(camera.target, 0.1f, 0.1f, 0.1f, ORANGE);
+        for (int i = 0; i < items.size(); i++) items[i].draw();
+        CLEAR_COLOR = BLACK;
+        for (int i = 0; i < items.size(); i++) if (isColliding(player,items[i])) CLEAR_COLOR = GREEN;
+        DrawCube(camera.target, 1.0f, 1.0f, 1.0f, ORANGE);
         EndMode3D();
         for (int i = 0; i < int(menu.size()); i++) {menu[i].draw();}
 		EndDrawing();
