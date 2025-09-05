@@ -65,11 +65,20 @@ class Player : public Collidable {
     void last(Camera &cam, Collidable &c) {
         float delta = GetFrameTime();
         pos = lastpos;
-        pos.x -= speed*sin(angle)*delta;
-        if (isColliding(*this, c)) pos.x = lastpos.x;
-        pos.z -= speed*cos(angle)*delta;
-        if (isColliding(*this, c)) pos.z = lastpos.z;
-        cam.target = pos;
+        if (sin(angle) > cos(angle)) {
+            pos.x -= speed*sin(angle)*delta;
+            if (isColliding(*this, c)) pos.x = lastpos.x;
+            pos.z -= speed*cos(angle)*delta;
+            if (isColliding(*this, c)) pos.z = lastpos.z;
+            cam.target = pos;
+        }
+        else {
+            pos.z -= speed*cos(angle)*delta;
+            if (isColliding(*this, c)) pos.z = lastpos.z;
+            pos.x -= speed*sin(angle)*delta;
+            if (isColliding(*this, c)) pos.x = lastpos.x;
+            cam.target = pos;
+        }
     }
 };
 
