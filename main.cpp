@@ -10,6 +10,7 @@ class Collidable {
         BoundingBox box() {
             return (BoundingBox){pos, (Vector3){pos.x+bb.x,pos.y+bb.y,pos.z+bb.z}};
         }
+        void draw() {}
 };
 
 bool isColliding(Collidable c1, Collidable c2)
@@ -34,11 +35,13 @@ class Item : public Collidable {
 class Player : public Collidable {
     private:
         const double CAMRADIUS = 8.0;
-        const float speed = 5.0f;
+        const float speed = 6.5f;
         double angle = 0.0f;
+        Vector3 lastpos = {0.0f,0.0f,0.0f};;
     public:
     void update(Camera &cam)
     {
+        lastpos = pos;
         float delta = GetFrameTime();
         if (IsKeyDown(KEY_W)) {
             cam.target.x -= speed*sin(angle)*delta;
@@ -55,6 +58,11 @@ class Player : public Collidable {
         cam.position = (Vector3){cam.target.x + sin(angle)*CAMRADIUS,
         cam.position.y, cam.target.z + cos(angle)*CAMRADIUS};
     }
+    void draw(Camera &cam)
+    {
+        DrawCube(cam.target, 1.0f, 1.0f, 1.0f, ORANGE);
+    }
+    void last(Camera &cam) {pos = lastpos; cam.target = pos;}
 };
 
 class GameButton {
@@ -161,7 +169,7 @@ int main ()
     enum GAME_STATE {PAUSED, MENU, RUNNING};
     GAME_STATE G = MENU;
     std::vector<Item> items;
-    for (int i = 0; i < 16; i++) {Item item = Item(4.0f*i, 0.0f, 4.0f*i); items.push_back(item);}
+    for (int i = 1; i < 16; i++) {Item item = Item(4.0f*i, 0.0f, 4.0f*i); items.push_back(item);}
     Color CLEAR_COLOR = BLACK;
     std::vector<GameButton> menu = buttonsMenu();
     bool exited = false;
@@ -202,8 +210,8 @@ int main ()
         BeginMode3D(camera);
         for (int i = 0; i < items.size(); i++) items[i].draw();
         CLEAR_COLOR = BLACK;
-        for (int i = 0; i < items.size(); i++) if (isColliding(player,items[i])) CLEAR_COLOR = GREEN;
-        DrawCube(camera.target, 1.0f, 1.0f, 1.0f, ORANGE);
+        for (int i = 0; i < items.size(); i++) if (isColliding(player,items[i])) player.last(camera);//items.erase(items.begin()+i);
+        player.draw(camera);
         EndMode3D();
         for (int i = 0; i < int(menu.size()); i++) {menu[i].draw();}
 		EndDrawing();
