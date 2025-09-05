@@ -62,7 +62,15 @@ class Player : public Collidable {
     {
         DrawCube(cam.target, 1.0f, 1.0f, 1.0f, ORANGE);
     }
-    void last(Camera &cam) {pos = lastpos; cam.target = pos;}
+    void last(Camera &cam, Collidable &c) {
+        float delta = GetFrameTime();
+        pos = lastpos;
+        pos.x -= speed*sin(angle)*delta;
+        if (isColliding(*this, c)) pos.x = lastpos.x;
+        pos.z -= speed*cos(angle)*delta;
+        if (isColliding(*this, c)) pos.z = lastpos.z;
+        cam.target = pos;
+    }
 };
 
 class GameButton {
@@ -210,7 +218,7 @@ int main ()
         BeginMode3D(camera);
         for (int i = 0; i < items.size(); i++) items[i].draw();
         CLEAR_COLOR = BLACK;
-        for (int i = 0; i < items.size(); i++) if (isColliding(player,items[i])) player.last(camera);//items.erase(items.begin()+i);
+        for (int i = 0; i < items.size(); i++) if (isColliding(player,items[i])) player.last(camera,items[i]);//items.erase(items.begin()+i);
         player.draw(camera);
         EndMode3D();
         for (int i = 0; i < int(menu.size()); i++) {menu[i].draw();}
