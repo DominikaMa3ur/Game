@@ -6,7 +6,7 @@ class Collidable {
     private:
     public:
         Vector3 bb = {1.0f,1.0f,1.0f};
-        Vector3 pos = {0.0f,0.0f,0.0f};
+        Vector3 pos = {0.0f,1.0f,0.0f};
         BoundingBox box() {
             return (BoundingBox){pos, (Vector3){pos.x+bb.x,pos.y+bb.y,pos.z+bb.z}};
         }
@@ -20,10 +20,10 @@ bool isColliding(Collidable c1, Collidable c2)
 
 class Item : public Collidable {
     public:
-    Item(Vector3 item_pos) {
+    explicit Item(Vector3 item_pos) {
         pos = item_pos;
     }
-    Item(float x, float y, float z) {
+    explicit Item(float x, float y, float z) {
         pos = {x,y,z};
     }
     void draw()
@@ -35,9 +35,11 @@ class Item : public Collidable {
 class Player : public Collidable {
     private:
         const double CAMRADIUS = 8.0;
-        const float speed = 6.5f;
+        const float speed = 7.0f;
         double angle = 0.0f;
-        Vector3 lastpos = {0.0f,0.0f,0.0f};;
+        Vector3 lastpos = {0.0f,1.0f,0.0f};
+        int food = 100;
+        int temperature = 0;
     public:
     void update(Camera &cam)
     {
@@ -46,6 +48,10 @@ class Player : public Collidable {
         if (IsKeyDown(KEY_W)) {
             cam.target.x -= speed*sin(angle)*delta;
             cam.target.z -= speed*cos(angle)*delta;
+        }
+        else if (IsKeyDown(KEY_S)) {
+            cam.target.x += 0.25*speed*sin(angle)*delta;
+            cam.target.z += 0.25*speed*cos(angle)*delta;
         }
         pos = cam.target;
         if (IsKeyDown(KEY_A)) {
@@ -79,6 +85,15 @@ class Player : public Collidable {
             if (isColliding(*this, c)) pos.x = lastpos.x;
             cam.target = pos;
         }
+    }
+};
+
+class FoodItem : public Item {
+    public:
+    using Item::Item;
+    void draw()
+    {
+        DrawCubeV(pos, (Vector3){0.5f, 0.1f, 0.5f}, ORANGE);
     }
 };
 
@@ -170,15 +185,37 @@ std::vector<GameButton> buttonsPause()
     return menu;
 }
 
+void drawRain(Vector3 center)
+{
+    static bool position_set = false;    
+    static Vector3 rainPos[64];
+    if (not position_set) {
+        for (int i = 0; i < 64; i++) {
+            rainPos[i] = {sin(i*2.0)*(2.0+i*1.2),i*0.1+1.0,cos(i*2.0)*(2.0+i*1.2)};
+            position_set = true;
+        }
+    }
+    float delta = GetFrameTime();
+    for (int i = 0; i < 32; i++) {
+        rainPos[i].y -= delta*8.0;
+        if (rainPos[i].y < 0.0) {rainPos[i].y += 8.0;}
+    }
+    for (int i = 0; i < 32; i++) {
+        DrawCubeV((Vector3){rainPos[i].x + center.x, rainPos[i].y + center.y, rainPos[i].z + center.z}, (Vector3){0.02,0.8,0.02}, BLUE);
+    }
+}
+
 int main ()
 {
     InitWindow(1280, 800, "3D");
     SetExitKey(KEY_NULL);
 
+    enum WEATHER {CLEAR, RAIN, SNOW};
+
 	Player player;
     Camera3D camera = { 0 };
-    camera.position = (Vector3){ -8.0f, 1.0f, 0.0f };
-    camera.target = (Vector3){ 0.0f, 0.0f, 0.0f };
+    camera.position = (Vector3){ -8.0f, 2.0f, 0.0f };
+    camera.target = (Vector3){ 0.0f, 1.0f, 0.0f };
     camera.up = (Vector3){ 0.0f, 1.0f, 0.0f };
     camera.fovy = 45.0f;
     camera.projection = CAMERA_PERSPECTIVE;
@@ -186,7 +223,9 @@ int main ()
     enum GAME_STATE {PAUSED, MENU, RUNNING};
     GAME_STATE G = MENU;
     std::vector<Item> items;
-    for (int i = 1; i < 16; i++) {Item item = Item(4.0f*i, 0.0f, 4.0f*i); items.push_back(item);}
+    std::vector<FoodItem> food;
+    for (int i = 1; i < 16; i++) {Item item = Item(4.0f*i, 1.0f, 4.0f*i); items.push_back(item);}
+    for (int i = 1; i < 16; i++) {FoodItem f = FoodItem(6.0f*i, 0.1f, 3.0f*i); food.push_back(f);}
     Color CLEAR_COLOR = BLACK;
     std::vector<GameButton> menu = buttonsMenu();
     bool exited = false;
@@ -226,9 +265,12 @@ int main ()
 		ClearBackground(CLEAR_COLOR);
         BeginMode3D(camera);
         for (int i = 0; i < items.size(); i++) items[i].draw();
-        CLEAR_COLOR = BLACK;
-        for (int i = 0; i < items.size(); i++) if (isColliding(player,items[i])) player.last(camera,items[i]);//items.erase(items.begin()+i);
+        for (int i = 0; i < food.size(); i++) food[i].draw();
+        for (int i = 0; i < items.size(); i++) if (isColliding(player,items[i])) player.last(camera,items[i]);
+        for (int i = 0; i < food.size(); i++) if (isColliding(player,food[i])) food.erase(food.begin()+i);
         player.draw(camera);
+        drawRain(camera.target);
+        DrawCube((Vector3){0.0f,-0.05f,0.0f}, 1024.0f, 0.1f, 128.0f, GREEN);
         EndMode3D();
         for (int i = 0; i < int(menu.size()); i++) {menu[i].draw();}
 		EndDrawing();
