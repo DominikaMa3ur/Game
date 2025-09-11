@@ -215,6 +215,28 @@ void drawRain(Vector3 center)
     }
 }
 
+void drawSnow(Vector3 center)
+{
+    const int RAIN = 1024;
+    static bool position_set = false;
+    static Vector3 rainPos[RAIN];
+    if (not position_set) {
+        for (int i = 0; i < RAIN; i++) {
+            rainPos[i] = newRainPos(center);
+            rainPos[i].y -= (rand()%100)*0.2;
+            position_set = true;
+        }
+    }
+    float delta = GetFrameTime();
+    for (int i = 0; i < RAIN; i++) {
+        rainPos[i].y -= delta*3.0*((18.0 - rainPos[i].y)/8.0);
+        if (rainPos[i].y < 0.0) {rainPos[i] = newRainPos(center);}
+    }
+    for (int i = 0; i < RAIN; i++) {
+        DrawCubeV(rainPos[i], (Vector3){0.05,0.05,0.05}, WHITE);
+    }
+}
+
 int main ()
 {
     InitWindow(1280, 800, "3D");
@@ -279,7 +301,7 @@ int main ()
         for (int i = 0; i < items.size(); i++) if (isColliding(player,items[i])) player.last(camera,items[i]);
         for (int i = 0; i < food.size(); i++) if (isColliding(player,food[i])) food.erase(food.begin()+i);
         player.draw(camera);
-        drawRain(camera.target);
+        drawSnow(camera.target);
         DrawCube((Vector3){0.0f,-0.05f,0.0f}, 1024.0f, 0.1f, 128.0f, GREEN);
         EndMode3D();
         for (int i = 0; i < int(menu.size()); i++) {menu[i].draw();}
