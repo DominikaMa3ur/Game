@@ -1,6 +1,7 @@
 #include "raylib.h"
 #include <vector>
 #include <cmath>
+#include <cstdlib>
 
 class Collidable {
     private:
@@ -185,23 +186,32 @@ std::vector<GameButton> buttonsPause()
     return menu;
 }
 
+Vector3 newRainPos(Vector3 center) {
+    int rx = rand() % 1024;
+    int rz = rand() % 1024;
+    Vector3 v = {(rx-512)*0.1 + center.x,16.0,(rz-512)*0.1 + center.z};
+    return v;
+}
+
 void drawRain(Vector3 center)
 {
-    static bool position_set = false;    
-    static Vector3 rainPos[64];
+    const int RAIN = 1024;
+    static bool position_set = false;
+    static Vector3 rainPos[RAIN];
     if (not position_set) {
-        for (int i = 0; i < 64; i++) {
-            rainPos[i] = {sin(i*2.0)*(2.0+i*1.2),i*0.1+1.0,cos(i*2.0)*(2.0+i*1.2)};
+        for (int i = 0; i < RAIN; i++) {
+            rainPos[i] = newRainPos(center);
+            rainPos[i].y -= (rand()%100)*0.2;
             position_set = true;
         }
     }
     float delta = GetFrameTime();
-    for (int i = 0; i < 32; i++) {
-        rainPos[i].y -= delta*8.0;
-        if (rainPos[i].y < 0.0) {rainPos[i].y += 8.0;}
+    for (int i = 0; i < RAIN; i++) {
+        rainPos[i].y -= delta*2.5*(18.0 - rainPos[i].y);
+        if (rainPos[i].y < 0.0) {rainPos[i] = newRainPos(center);}
     }
-    for (int i = 0; i < 32; i++) {
-        DrawCubeV((Vector3){rainPos[i].x + center.x, rainPos[i].y + center.y, rainPos[i].z + center.z}, (Vector3){0.02,0.8,0.02}, BLUE);
+    for (int i = 0; i < RAIN; i++) {
+        DrawCubeV(rainPos[i], (Vector3){0.01,0.4,0.01}, BLUE);
     }
 }
 
