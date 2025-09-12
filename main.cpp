@@ -51,17 +51,29 @@ class Shrub : public Collidable {
     }
     bool is_dead() {return dead;}
     bool collect_fruit() {if (fruit_ready) {fruit_ready = false; return true;} return false;}
+    void draw()
+    {
+        DrawCubeV(pos, (Vector3){1.2,2.4,1.2}, DARKGREEN);
+    }
 };
 
 class FoodItem : public Item {
     private:
     int age = 0;
+    int decay = 0;
     public:
+    const static int max_decay = 2;
     using Item::Item;
+    void update(int a = 1) {
+        if (a > 0) age += a;
+        if (age > 10) decay += a;
+    }
     void draw()
     {
-        DrawCubeV(pos, (Vector3){0.5f, 0.1f, 0.5f}, ORANGE);
+        if (decay == 0) DrawCubeV(pos, (Vector3){0.5f, 0.1f, 0.5f}, ORANGE);
+        else DrawCubeV(pos, (Vector3){0.5f, 0.1f, 0.5f}, RED);
     }
+    bool decayed() {return max_decay <= decay;}
 };
 
 class Player : public Collidable {
@@ -123,12 +135,25 @@ class Player : public Collidable {
 class FoodGroup {
     private:
     std::vector<FoodItem> food;
+    float time = 0.0;
+    const float max_time = 2.0;
     public:
     void add(FoodItem f) {food.push_back(f);}
     void draw()
     {for (int f = 0; f < food.size(); f++) {food[f].draw();}}
     void update(Player &player)
-    {for (int i = 0; i < food.size(); i++) if (isColliding(player,food[i])) food.erase(food.begin()+i);}
+    {
+        float delta = GetFrameTime();
+        time += delta;        
+        for (int i = 0; i < food.size(); i++) {
+            if (food[i].decayed()) food.erase(food.begin()+i);
+            else if (isColliding(player,food[i])) food.erase(food.begin()+i);
+        }
+        while (time > max_time) {
+            time -= max_time;
+            for (int i = 0; i < food.size(); i++) {food[i].update();}
+            }
+    }
     void create_food(Vector3 pos)
     {FoodItem f = FoodItem(pos); f.pos.y = 0.1f; add(f);}
 };
@@ -137,15 +162,15 @@ class PlantGroup {
     private:
     std::vector<Shrub> plants = {Shrub((Vector3){16.0, 1.0, 16.0f}),Shrub((Vector3){8.0, 1.0, -8.0f})};
     FoodGroup* food;
-    Vector3 fruitPos(Vector3 pos0)
+    Vector3 fruitPos(Vector3 pos0, float radius = 0.04, float minradius = 0.8)
     {
-        float x = (rand() % 100)*0.035+1.5;
-        float z = (rand() % 100)*0.035+1.5;
+        float x = (rand() % 100)*radius+minradius;
+        float z = (rand() % 100)*radius+minradius;
         if (rand()%2 == 0) x *= -1;
         if (rand()%2 == 0) z *= -1;
-        Vector3 pos1 = pos0;
-        pos1.x += x; pos1.z += z;
-        return pos1;
+        Vector3 fruit_pos = pos0;
+        fruit_pos.x += x; fruit_pos.z += z;
+        return fruit_pos;
     }
     public:
     PlantGroup (FoodGroup* fg) {food = fg;}
@@ -156,6 +181,9 @@ class PlantGroup {
             if (plants[i].collect_fruit()) {food->create_food(fruitPos(plants[i].pos));}
             if (plants[i].is_dead()) {plants.erase(plants.begin()+i);}
         }
+    }
+    void draw() {
+        for (int i = 0; i < plants.size(); i++) plants[i].draw();
     }
 };
 
@@ -318,7 +346,7 @@ int main ()
     FoodGroup foodg;
     PlantGroup plantg(&foodg);
     std::vector<Item> items;
-    for (int i = 1; i < 16; i++) {Item item = Item(4.0f*i, 1.0f, 4.0f*i); items.push_back(item);}
+    for (int i = 1; i < 1; i++) {Item item = Item(4.0f*i, 1.0f, 4.0f*i); items.push_back(item);}
     Color CLEAR_COLOR = BLACK;
     std::vector<GameButton> menu = buttonsMenu();
     bool exited = false;
@@ -364,6 +392,7 @@ int main ()
         foodg.update(player);
         plantg.update();
         player.draw(camera);
+        plantg.draw();
         drawSnow(camera.target);
         DrawCube((Vector3){0.0f,-0.05f,0.0f}, 1024.0f, 0.1f, 128.0f, GREEN);
         EndMode3D();
