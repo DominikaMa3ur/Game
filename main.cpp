@@ -33,6 +33,37 @@ class Item : public Collidable {
     }
 };
 
+class Shrub : public Collidable {
+    private:
+    float age = 0.0f;
+    float last_fruit = 0.0f;
+    float FRUIT_TIME = 20.0f;
+    float MAX_AGE = 200.0f;
+    bool dead = false;
+    bool fruit_ready = true;
+    public:
+    explicit Shrub(Vector3 new_pos) {pos = new_pos;}
+    void update(float delta) {
+        age += delta;
+        last_fruit += delta;
+    if (age >= MAX_AGE) dead = true;
+    if (last_fruit >= FRUIT_TIME) {fruit_ready = true; last_fruit -= FRUIT_TIME;};
+    }
+    bool is_dead() {return dead;}
+    bool collect_fruit() {if (fruit_ready) {fruit_ready = false; return true;} return false;}
+};
+
+class FoodItem : public Item {
+    private:
+    int age = 0;
+    public:
+    using Item::Item;
+    void draw()
+    {
+        DrawCubeV(pos, (Vector3){0.5f, 0.1f, 0.5f}, ORANGE);
+    }
+};
+
 class Player : public Collidable {
     private:
         const double CAMRADIUS = 8.0;
@@ -62,8 +93,8 @@ class Player : public Collidable {
             angle -= 2.0f*delta;
         }
         while (angle > 2*M_PI) {angle -= 2*M_PI;}
-        cam.position = (Vector3){cam.target.x + sin(angle)*CAMRADIUS,
-        cam.position.y, cam.target.z + cos(angle)*CAMRADIUS};
+        cam.position = (Vector3){float(cam.target.x + sin(angle)*CAMRADIUS),
+        cam.position.y, float(cam.target.z + cos(angle)*CAMRADIUS)};
     }
     void draw(Camera &cam)
     {
@@ -89,12 +120,42 @@ class Player : public Collidable {
     }
 };
 
-class FoodItem : public Item {
+class FoodGroup {
+    private:
+    std::vector<FoodItem> food;
     public:
-    using Item::Item;
+    void add(FoodItem f) {food.push_back(f);}
     void draw()
+    {for (int f = 0; f < food.size(); f++) {food[f].draw();}}
+    void update(Player &player)
+    {for (int i = 0; i < food.size(); i++) if (isColliding(player,food[i])) food.erase(food.begin()+i);}
+    void create_food(Vector3 pos)
+    {FoodItem f = FoodItem(pos); f.pos.y = 0.1f; add(f);}
+};
+
+class PlantGroup {
+    private:
+    std::vector<Shrub> plants = {Shrub((Vector3){16.0, 1.0, 16.0f}),Shrub((Vector3){8.0, 1.0, -8.0f})};
+    FoodGroup* food;
+    Vector3 fruitPos(Vector3 pos0)
     {
-        DrawCubeV(pos, (Vector3){0.5f, 0.1f, 0.5f}, ORANGE);
+        float x = (rand() % 100)*0.035+1.5;
+        float z = (rand() % 100)*0.035+1.5;
+        if (rand()%2 == 0) x *= -1;
+        if (rand()%2 == 0) z *= -1;
+        Vector3 pos1 = pos0;
+        pos1.x += x; pos1.z += z;
+        return pos1;
+    }
+    public:
+    PlantGroup (FoodGroup* fg) {food = fg;}
+    void update() {
+        for (int i = 0; i < plants.size(); i++) {
+            float delta = GetFrameTime();
+            plants[i].update(delta);
+            if (plants[i].collect_fruit()) {food->create_food(fruitPos(plants[i].pos));}
+            if (plants[i].is_dead()) {plants.erase(plants.begin()+i);}
+        }
     }
 };
 
@@ -189,7 +250,7 @@ std::vector<GameButton> buttonsPause()
 Vector3 newRainPos(Vector3 center) {
     int rx = rand() % 1024;
     int rz = rand() % 1024;
-    Vector3 v = {(rx-512)*0.1 + center.x,16.0,(rz-512)*0.1 + center.z};
+    Vector3 v = {float((rx-512)*0.1 + center.x),16.0,float((rz-512)*0.1 + center.z)};
     return v;
 }
 
@@ -254,13 +315,14 @@ int main ()
     
     enum GAME_STATE {PAUSED, MENU, RUNNING};
     GAME_STATE G = MENU;
+    FoodGroup foodg;
+    PlantGroup plantg(&foodg);
     std::vector<Item> items;
-    std::vector<FoodItem> food;
     for (int i = 1; i < 16; i++) {Item item = Item(4.0f*i, 1.0f, 4.0f*i); items.push_back(item);}
-    for (int i = 1; i < 16; i++) {FoodItem f = FoodItem(6.0f*i, 0.1f, 3.0f*i); food.push_back(f);}
     Color CLEAR_COLOR = BLACK;
     std::vector<GameButton> menu = buttonsMenu();
     bool exited = false;
+
 
 	while (!exited)
 	{
@@ -297,9 +359,10 @@ int main ()
 		ClearBackground(CLEAR_COLOR);
         BeginMode3D(camera);
         for (int i = 0; i < items.size(); i++) items[i].draw();
-        for (int i = 0; i < food.size(); i++) food[i].draw();
+        foodg.draw();
         for (int i = 0; i < items.size(); i++) if (isColliding(player,items[i])) player.last(camera,items[i]);
-        for (int i = 0; i < food.size(); i++) if (isColliding(player,food[i])) food.erase(food.begin()+i);
+        foodg.update(player);
+        plantg.update();
         player.draw(camera);
         drawSnow(camera.target);
         DrawCube((Vector3){0.0f,-0.05f,0.0f}, 1024.0f, 0.1f, 128.0f, GREEN);
