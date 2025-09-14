@@ -2,6 +2,10 @@
 #include <vector>
 #include <cmath>
 #include <cstdlib>
+#include <string>
+#include <map>
+
+const std::map<std::string, int> FOOD_VALUE {{"FRUIT",15},{"DECAYING_FRUIT",8}};
 
 class Collidable {
     private:
@@ -73,29 +77,50 @@ class FoodItem : public Item {
         if (decay == 0) DrawCubeV(pos, (Vector3){0.5f, 0.1f, 0.5f}, ORANGE);
         else DrawCubeV(pos, (Vector3){0.5f, 0.1f, 0.5f}, RED);
     }
+    bool decaying() {return decay > 0;}
     bool decayed() {return max_decay <= decay;}
 };
 
 class Player : public Collidable {
     private:
         const double CAMRADIUS = 8.0;
-        const float speed = 7.0f;
+        const float speed = 15.0f;
         double angle = 0.0f;
         Vector3 lastpos = {0.0f,1.0f,0.0f};
         int food = 100;
         int temperature = 0;
+        float hunger_time = 0.0;
+        const float max_hunger_time = 1.25;
+        const int max_food = 150;
+        struct player_state {
+            unsigned int starving: 1;
+            unsigned int sick: 1;
+            unsigned int too_cold: 1;
+            unsigned int too_hot: 1;
+            unsigned int thirsty: 1;
+        };
+        player_state PS;
     public:
+    float calculateSpeed() {
+        float v = speed;
+        if (PS.starving) v *= 0.6;
+        if (PS.sick) v *= 0.5;
+        if (PS.too_cold) v *= 0.75;
+        if (PS.too_hot) v *= 0.8;
+        return v;
+    }
     void update(Camera &cam)
     {
         lastpos = pos;
+        float v = calculateSpeed();
         float delta = GetFrameTime();
         if (IsKeyDown(KEY_W)) {
-            cam.target.x -= speed*sin(angle)*delta;
-            cam.target.z -= speed*cos(angle)*delta;
+            cam.target.x -= v*sin(angle)*delta;
+            cam.target.z -= v*cos(angle)*delta;
         }
         else if (IsKeyDown(KEY_S)) {
-            cam.target.x += 0.25*speed*sin(angle)*delta;
-            cam.target.z += 0.25*speed*cos(angle)*delta;
+            cam.target.x += 0.25*v*sin(angle)*delta;
+            cam.target.z += 0.25*v*cos(angle)*delta;
         }
         pos = cam.target;
         if (IsKeyDown(KEY_A)) {
@@ -107,11 +132,28 @@ class Player : public Collidable {
         while (angle > 2*M_PI) {angle -= 2*M_PI;}
         cam.position = (Vector3){float(cam.target.x + sin(angle)*CAMRADIUS),
         cam.position.y, float(cam.target.z + cos(angle)*CAMRADIUS)};
+        updateHunger(delta);
+    }
+    void updateHunger(float delta) {
+        hunger_time += delta;
+        while (hunger_time > max_hunger_time) {
+            food -= 1;
+            hunger_time -= max_hunger_time;
+            if (food < 25) {PS.starving = true;}
+        }
+        DrawText(std::to_string(food).c_str(), 4, 4, 24, BLUE);
+        displayIcons();
     }
     void draw(Camera &cam)
     {
         DrawCube(cam.target, 1.0f, 1.0f, 1.0f, ORANGE);
+        
     }
+    void addFood(int f) {
+            food += f;
+            if (food > 25) {PS.starving = false;}
+            if (food > max_food) {PS.sick = true;}
+        }
     void last(Camera &cam, Collidable &c) {
         float delta = GetFrameTime();
         pos = lastpos;
@@ -130,6 +172,13 @@ class Player : public Collidable {
             cam.target = pos;
         }
     }
+    void displayIcons() {
+        Vector2 position = {16,16};
+        Vector2 icon = {64,64};
+        if (PS.starving) {DrawRectangleV(position, icon, RED); position.x += 16 + icon.x;}
+        if (PS.sick) {DrawRectangleV(position, icon, GREEN); position.x += 16 + icon.x;}
+    }
+    void badFoodEaten() {if (rand()%8==0) PS.sick = true;}
 };
 
 class FoodGroup {
@@ -147,7 +196,11 @@ class FoodGroup {
         time += delta;        
         for (int i = 0; i < food.size(); i++) {
             if (food[i].decayed()) food.erase(food.begin()+i);
-            else if (isColliding(player,food[i])) food.erase(food.begin()+i);
+            else if (isColliding(player,food[i])) {
+                if (not food[i].decaying()) {player.addFood(FOOD_VALUE.at("FRUIT"));}
+                else {player.addFood(FOOD_VALUE.at("DECAYING_FRUIT"));player.badFoodEaten();}
+                food.erase(food.begin()+i);
+            }
         }
         while (time > max_time) {
             time -= max_time;
@@ -206,7 +259,7 @@ class GameButton {
         }
         void drawButtonText()
         {
-            DrawText(text, rect.x + rect.width/2 - MeasureText(text, 20)/2, rect.y+rect.height/2+3, 24, color_shadow);            
+            DrawText(text, rect.x + rect.width/2 - MeasureText(text, 20)/2, rect.y+rect.height/2+3, 24, color_shadow);
             DrawText(text, rect.x + rect.width/2 - MeasureText(text, 20)/2, rect.y+rect.height/2, 24, WHITE);
         }
     public:
