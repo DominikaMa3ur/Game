@@ -185,7 +185,7 @@ class PlantGroup {
             if (plants[i].is_dead()) {plants.erase(plants.begin()+i);}
             while (!food->seeds.empty())
             {
-                createAt(food->seeds.back());
+                if (rand() % 15 == 0) createAt(food->seeds.back());
                 food->seeds.pop_back();
             }
         }
