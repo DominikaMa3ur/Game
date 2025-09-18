@@ -41,12 +41,12 @@ class Shrub : public Collidable {
     private:
     float age = 0.0f;
     float last_fruit = 0.0f;
-    float FRUIT_TIME = 20.0f;
+    float FRUIT_TIME = 60.0f;
     float MAX_AGE = 200.0f;
     bool dead = false;
-    bool fruit_ready = true;
+    bool fruit_ready = false;
     public:
-    explicit Shrub(Vector3 new_pos) {pos = new_pos;}
+    explicit Shrub(Vector3 new_pos) {pos = new_pos; last_fruit = rand()%20;}
     void update(float delta) {
         age += delta;
         last_fruit += delta;
@@ -66,7 +66,7 @@ class FoodItem : public Item {
     int age = 0;
     int decay = 0;
     public:
-    const static int max_decay = 2;
+    const static int max_decay = 5;
     using Item::Item;
     void update(int a = 1) {
         if (a > 0) age += a;
@@ -195,6 +195,7 @@ class FoodGroup {
     float time = 0.0;
     const float max_time = 2.0;
     public:
+    std::vector<Vector3> seeds;
     void add(FoodItem f) {food.push_back(f);}
     void draw()
     {for (int f = 0; f < food.size(); f++) {food[f].draw();}}
@@ -203,7 +204,7 @@ class FoodGroup {
         float delta = GetFrameTime();
         time += delta;        
         for (int i = 0; i < food.size(); i++) {
-            if (food[i].decayed()) food.erase(food.begin()+i);
+            if (food[i].decayed()) {seeds.push_back(food[i].pos);food.erase(food.begin()+i);}
             else if (isColliding(player,food[i])) {
                 if (not food[i].decaying()) {player.addFood(FOOD_VALUE.at("FRUIT"));}
                 else {player.addFood(FOOD_VALUE.at("DECAYING_FRUIT"));player.badFoodEaten();}
@@ -221,9 +222,9 @@ class FoodGroup {
 
 class PlantGroup {
     private:
-    std::vector<Shrub> plants = {Shrub((Vector3){16.0, 1.0, 16.0f}),Shrub((Vector3){8.0, 1.0, -8.0f})};
+    std::vector<Shrub> plants = {};
     FoodGroup* food;
-    Vector3 fruitPos(Vector3 pos0, float radius = 0.04, float minradius = 0.8)
+    Vector3 fruitPos(Vector3 pos0, float radius = 0.044, float minradius = 1.2)
     {
         float x = (rand() % 100)*radius+minradius;
         float z = (rand() % 100)*radius+minradius;
@@ -234,17 +235,38 @@ class PlantGroup {
         return fruit_pos;
     }
     public:
-    PlantGroup (FoodGroup* fg) {food = fg;}
+    PlantGroup (FoodGroup* fg) {
+        food = fg;
+        for (int x = 0; x < 12; x++)
+        {
+            for (int z = 0; z < 12; z++)
+            {
+                if (rand()%3 == 0) continue;                
+                plants.push_back(Shrub((Vector3){32.0f*x-128.0f+float(rand()%8-4), 1.0, 32.0f*z-128.0f+float(rand()%8-4)}));
+            }
+        }
+    }
     void update() {
         for (int i = 0; i < plants.size(); i++) {
             float delta = GetFrameTime();
             plants[i].update(delta);
-            if (plants[i].collect_fruit()) {food->create_food(fruitPos(plants[i].pos));}
+            if (plants[i].collect_fruit()) {
+                for (int j = 0; j < 5; j++)food->create_food(fruitPos(plants[i].pos));
+            }
             if (plants[i].is_dead()) {plants.erase(plants.begin()+i);}
+            while (!food->seeds.empty())
+            {
+                if (rand() % 15 == 0) createAt(food->seeds.back());
+                food->seeds.pop_back();
+            }
         }
     }
     void draw() {
         for (int i = 0; i < plants.size(); i++) plants[i].draw();
+    }
+    void createAt(Vector3 pos)
+    {
+        plants.push_back(Shrub(pos));
     }
 };
 
