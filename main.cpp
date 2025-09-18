@@ -161,7 +161,7 @@ class FoodGroup {
 
 class PlantGroup {
     private:
-    std::vector<Shrub> plants = {Shrub((Vector3){16.0, 1.0, 16.0f}),Shrub((Vector3){8.0, 1.0, -8.0f})};
+    std::vector<Shrub> plants = {};
     FoodGroup* food;
     Vector3 fruitPos(Vector3 pos0, float radius = 0.044, float minradius = 1.2)
     {
@@ -174,7 +174,17 @@ class PlantGroup {
         return fruit_pos;
     }
     public:
-    PlantGroup (FoodGroup* fg) {food = fg;}
+    PlantGroup (FoodGroup* fg) {
+        food = fg;
+        for (int x = 0; x < 12; x++)
+        {
+            for (int z = 0; z < 12; z++)
+            {
+                if (rand()%3 == 0) continue;                
+                plants.push_back(Shrub((Vector3){32.0f*x-128.0f+float(rand()%8-4), 1.0, 32.0f*z-128.0f+float(rand()%8-4)}));
+            }
+        }
+    }
     void update() {
         for (int i = 0; i < plants.size(); i++) {
             float delta = GetFrameTime();
