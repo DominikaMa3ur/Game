@@ -101,6 +101,13 @@ class Player : public Collidable {
         };
         player_state PS;
     public:
+    Player() {
+        PS.starving = false;
+        PS.sick = false;
+        PS.too_hot = false;
+        PS.too_cold = false;
+        PS.thirsty = false;
+    }
     float calculateSpeed() {
         float v = speed;
         if (PS.starving) v *= 0.6;
@@ -140,6 +147,7 @@ class Player : public Collidable {
             food -= 1;
             hunger_time -= max_hunger_time;
             if (food < 25) {PS.starving = true;}
+            else if (food > 25) {PS.starving = false;}
         }
         DrawText(std::to_string(food).c_str(), 4, 4, 24, BLUE);
         displayIcons();
@@ -175,8 +183,8 @@ class Player : public Collidable {
     void displayIcons() {
         Vector2 position = {16,16};
         Vector2 icon = {64,64};
-        if (PS.starving) {DrawRectangleV(position, icon, RED); position.x += 16 + icon.x;}
         if (PS.sick) {DrawRectangleV(position, icon, GREEN); position.x += 16 + icon.x;}
+        if (PS.starving) {DrawRectangleV(position, icon, RED); position.x += 16 + icon.x;}
     }
     void badFoodEaten() {if (rand()%8==0) PS.sick = true;}
 };
